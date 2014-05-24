@@ -16,24 +16,18 @@ class PerceptionSynthesiser():
         self.users_lock = threading.Lock()
         self.users = []
         self.users_sub = rospy.Subscriber('openni_tracker/users', UInt16MultiArray, self.users_changed)
-        self.thingies_pub = rospy.Publisher('thingies', Thingies, self.users_changed)
+        self.thingies_pub = rospy.Publisher(rospy.get_name() + '/thingies', Thingies)
 
-        
         self.tl = tf.TransformListener()
-
-    def thingies_changed(self, msg):
-        print "thingies"
 
     def users_changed(self, users):
         self.users_lock.acquire()
-		if len(users.data) > 0:
+        if len(users.data) > 0:
             self.users = users.data
-            print("OPENNI %s" % self.users)
+            print("USERS %s" % str(self.users))
         self.users_lock.release()
 
     def run(self):
-        rospy.Subscriber('thingies', Thingies, self.thingies_changed)
-
         while not rospy.is_shutdown():
             self.users_lock.acquire()
             time = rospy.Time(0)
@@ -41,7 +35,7 @@ class PerceptionSynthesiser():
 
             for user in self.users:
                 try:
-                    print("USER %s" % user)
+                    print("USER %s" % str(user))
                     tf_user_id = '/head_' + str(user)
                     (trans, rot) = self.tl.lookupTransform('/camera_depth_frame', tf_user_id, time)
                     thingy = Thingy()
@@ -57,12 +51,10 @@ class PerceptionSynthesiser():
                 except (tf.LookupException, tf.ConnectivityException):
                     continue
 
-            self.thingies_pub.publish(msg)
             self.users_lock.release()
+            self.thingies_pub.publish(msg)
             self.rate.sleep()
 
 if __name__ == '__main__':    
     ps = PerceptionSynthesiser()
     ps.run()
-
-
